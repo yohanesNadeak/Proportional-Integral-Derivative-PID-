@@ -1,0 +1,76 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import control as ctrl
+from scipy.optimize import minimize
+import os
+
+num = [1]
+den = [1, 1]
+plant = ctrl.TransferFunction(num, den)
+
+def objective(params):
+    Kp, Ki, Kd = params
+    if any(p < 0 for p in params):
+        return 1e6  
+
+    pid = ctrl.TransferFunction([Kd, Kp, Ki], [1, 0])
+    sys_cl = ctrl.feedback(pid * plant, 1)
+    t = np.linspace(0, 40, 2000)
+    t, y = ctrl.step_response(sys_cl, t)
+
+    idx_before_20 = np.where(t < 20)[0]
+    min_y_before_20 = np.min(y[idx_before_20])
+    undershoot_penalty = 0
+    if min_y_before_20 < 0:
+        undershoot_penalty = (abs(min_y_before_20) ** 2) * 1000
+
+    overshoot = np.max(y) - 1.05
+    overshoot_penalty = overshoot * 1000 if overshoot > 0 else 0
+
+    idx_after_20 = np.where(t >= 20)[0]
+    variance_after_20 = np.var(y[idx_after_20])
+    oscillation_penalty = variance_after_20 * 1000
+
+    idx_15 = np.argmin(np.abs(t - 15))
+    error_before = max(0, y[idx_15] - 0.7)**2
+
+    idx_20 = np.argmin(np.abs(t - 20))
+    error_at_20 = (y[idx_20] - 1.0)**2
+
+    idx_25 = np.argmin(np.abs(t - 25))
+    error_after = max(0, 0.95 - y[idx_25])**2
+
+    total_error = (error_before + error_at_20 + error_after +
+                   overshoot_penalty + oscillation_penalty + undershoot_penalty)
+    return total_error
+
+initial_guess = [0.5, 0.05, 0.05]
+bounds = [(0, 5), (0, 1), (0, 1)]
+
+result = minimize(objective, initial_guess, bounds=bounds, method='L-BFGS-B')
+Kp_opt, Ki_opt, Kd_opt = result.x
+print(f"Parameter PID optimal:\nKp = {Kp_opt:.4f}, Ki = {Ki_opt:.4f}, Kd = {Kd_opt:.4f}")
+
+pid_opt = ctrl.TransferFunction([Kd_opt, Kp_opt, Ki_opt], [1, 0])
+sys_cl_opt = ctrl.feedback(pid_opt * plant, 1)
+t = np.linspace(0, 40, 2000)
+t, y = ctrl.step_response(sys_cl_opt, t)
+
+idx_20 = np.argmin(np.abs(t - 20))
+print(f"Output pada t=20 detik: {y[idx_20]:.4f}")
+
+plt.figure(figsize=(8, 4))
+plt.plot(t, y, label='Respon Sistem Optimal')
+plt.axvline(x=20, color='r', linestyle='--', label='Target 20 detik')
+plt.axhline(y=1, color='g', linestyle='--', label='Setpoint 1.0')
+plt.title('Respon Langkah Sistem PID Optimal')
+plt.xlabel('Waktu (detik)')
+plt.ylabel('Output')
+plt.grid(True)
+plt.legend()
+plt.show()
+
+plt.savefig('Tuga2.png', bbox_inches='tight', dpi=300)
+plt.show()
+
+print("Grafik tersimpan di:", os.path.abspath('tugas2.png'))
