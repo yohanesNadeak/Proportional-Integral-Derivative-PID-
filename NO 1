@@ -1,0 +1,32 @@
+!pip install matplotlib-venn
+!pip install control
+import numpy as np
+import matplotlib.pyplot as plt
+import control as ctrl
+import os
+num = [8]
+den = [8, 8]
+plant = ctrl.TransferFunction(num, den)
+Kp = 3.2
+Ki = 0.8
+Kd = 0.5
+pid = ctrl.TransferFunction([Kd, Kp, Ki], [1, 0])
+sys_cl = ctrl.feedback(pid * plant, 1)
+t = np.linspace(0, 10, 1000)
+t, y = ctrl.step_response(sys_cl, t)
+plt.figure(figsize=(8, 4))
+plt.plot(t, y, label='Respon Sistem')
+
+plt.axvline(x=2, color='r', linestyle='--', label='Target 2 detik')
+
+plt.axhline(y=1, color='g', linestyle='--', label='Setpoint')
+
+plt.title('Respon Langkah Sistem PID (Mendekati 2 detik tanpa overshoot)')
+plt.xlabel('Waktu (detik)')
+plt.ylabel('Output')
+plt.grid(True)
+plt.legend()
+
+plt.savefig('respon_pid.png', bbox_inches='tight', dpi=300)
+plt.show()
+print("Grafik tersimpan di:", os.path.abspath('respon_pid.png'))
