@@ -1,0 +1,40 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import control as ctrl
+import os
+
+num = [8]
+den = [8, 8]
+plant = ctrl.TransferFunction(num, den)
+
+Kp = 0.4    # Dikurangi untuk menghindari respons terlalu agresif
+Ki = 0.3    # Dikurangi untuk mencegah windup integral
+Kd = 0.1    # Disesuaikan untuk meredam osilasi
+
+pid = ctrl.TransferFunction([Kd, Kp, Ki], [1, 0])
+sys_cl = ctrl.feedback(pid * plant, 1)
+
+t = np.linspace(0, 40, 1000)
+t, y = ctrl.step_response(sys_cl, t)
+
+idx_20 = np.argmin(np.abs(t - 20))
+output_20s = y[idx_20]
+
+print(f"Output pada t=20 detik: {output_20s:.4f}")
+
+plt.figure(figsize=(8, 4))
+plt.plot(t, y, label='Respon Sistem')
+
+plt.axvline(x=20, color='r', linestyle='--', label='Target 20 detik')
+plt.axhline(y=1.0, color='g', linestyle='--', label='Setpoint 1.0')
+
+plt.title('Respon Langkah Sistem PID (Mencapai setpoint stabil di t=20 detik)')
+plt.xlabel('Waktu (detik)')
+plt.ylabel('Output')
+plt.grid(True)
+plt.legend()
+
+plt.savefig('Tugas3.png', bbox_inches='tight', dpi=300)
+plt.show()
+
+print("Grafik tersimpan di:", os.path.abspath('Tugas3.png'))
